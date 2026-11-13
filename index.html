@@ -89,11 +89,29 @@
     let lectorQR = null;
     let procesando = false;
 function llamarApi(parametros, callback) {
-  const nombre = "respuestaApi_" + Date.now();
+  const nombre = "respuestaApi_" + Date.now() + "_" +
+    Math.floor(Math.random() * 10000);
 
   const script = document.createElement("script");
+  let finalizado = false;
+
+  const temporizador = setTimeout(function() {
+    if (finalizado) return;
+    finalizado = true;
+    delete window[nombre];
+    script.remove();
+
+    callback({
+      ok: false,
+      timeout: true,
+      mensaje: "Servidor lento. Verifica el ticket antes de repetir."
+    });
+  }, 20000);
 
   window[nombre] = function(respuesta) {
+    if (finalizado) return;
+    finalizado = true;
+    clearTimeout(temporizador);
     delete window[nombre];
     script.remove();
     callback(respuesta);
@@ -102,17 +120,19 @@ function llamarApi(parametros, callback) {
   parametros.api = "1";
   parametros.callback = nombre;
 
-  const consulta = new URLSearchParams(parametros);
-
-  script.src = API_URL + "?" + consulta.toString();
+  script.src = API_URL + "?" +
+    new URLSearchParams(parametros).toString();
 
   script.onerror = function() {
+    if (finalizado) return;
+    finalizado = true;
+    clearTimeout(temporizador);
     delete window[nombre];
     script.remove();
 
     callback({
       ok: false,
-      mensaje: "No se pudo conectar con el servidor."
+      mensaje: "No se recibió respuesta. Verifica el ticket antes de repetir."
     });
   };
 
