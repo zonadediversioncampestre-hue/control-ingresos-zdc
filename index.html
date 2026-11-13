@@ -85,80 +85,73 @@
   </div>
 
   <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbxCLv1X12rByidlIrA-YQejH24gXkBiwfXl0rfvTRvrwBXIk0bi4sGtKdepxebsYXsfxw/exec";
     let lectorQR = null;
     let procesando = false;
+function llamarApi(parametros, callback) {
+  const nombre = "respuestaApi_" + Date.now();
 
+  const script = document.createElement("script");
+
+  window[nombre] = function(respuesta) {
+    delete window[nombre];
+    script.remove();
+    callback(respuesta);
+  };
+
+  parametros.api = "1";
+  parametros.callback = nombre;
+
+  const consulta = new URLSearchParams(parametros);
+
+  script.src = API_URL + "?" + consulta.toString();
+
+  script.onerror = function() {
+    delete window[nombre];
+    script.remove();
+
+    callback({
+      ok: false,
+      mensaje: "No se pudo conectar con el servidor."
+    });
+  };
+
+  document.body.appendChild(script);
+}
     function ingresar() {
-      const pin = document.getElementById("pin").value.trim();
+  const pin = document.getElementById("pin").value.trim();
+  const resultado = document.getElementById("resultado");
 
-      if (!pin) {
-        document.getElementById("resultado").textContent =
-          "Ingresa tu PIN.";
+  if (!pin) {
+    resultado.textContent = "Ingresa tu PIN.";
+    return;
+  }
+
+  resultado.textContent = "Verificando autorización...";
+
+  llamarApi(
+    {
+      accion: "autenticar",
+      pin: pin
+    },
+    function(respuesta) {
+      if (!respuesta.ok) {
+        resultado.textContent = respuesta.mensaje;
         return;
       }
 
-      // En esta etapa solo probaremos la pantalla y la cámara.
+      window.tokenEncargado = respuesta.token;
+
       document.getElementById("acceso").style.display = "none";
       document.getElementById("validacion").style.display = "block";
       document.getElementById("encargado").textContent =
-        "Acceso de prueba";
-      document.getElementById("resultado").textContent =
-        "Pulsa ACTIVAR CÁMARA para comenzar.";
+        "Encargado: " + respuesta.nombre;
+
+      resultado.textContent =
+        "Autorización correcta. Pulsa ACTIVAR CÁMARA.";
     }
-
-    async function iniciarEscaner() {
-      const resultado = document.getElementById("resultado");
-
-      if (lectorQR) return;
-
-      lectorQR = new Html5Qrcode("lector");
-
-      try {
-        await lectorQR.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          function(texto) {
-            if (procesando) return;
-
-            let codigo = "";
-
-            try {
-              const enlace = new URL(texto);
-              codigo = enlace.searchParams.get("codigo") || "";
-            } catch (error) {
-              codigo = texto.trim();
-            }
-
-            if (!/^ZDC-\d{5}$/.test(codigo)) {
-              resultado.textContent =
-                "Este QR no corresponde a un ticket válido.";
-              return;
-            }
-
-            procesando = true;
-            resultado.textContent =
-              "QR LEÍDO CORRECTAMENTE: " + codigo;
-
-            lectorQR.stop().then(function() {
-              lectorQR = null;
-              procesando = false;
-              document.getElementById("btnEncender").style.display =
-                "block";
-              resultado.textContent =
-                "QR LEÍDO CORRECTAMENTE: " + codigo;
-            });
-          }
-        );
-
-        document.getElementById("btnEncender").style.display = "none";
-        resultado.textContent = "Cámara activada. Escanea un QR.";
-
-      } catch (error) {
-        lectorQR = null;
-        resultado.textContent =
-          "No se pudo activar la cámara: " + error;
-      }
-    }
+  );
+}
   </script>
 </body>
 </html>
