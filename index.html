@@ -152,6 +152,66 @@ function llamarApi(parametros, callback) {
     }
   );
 }
+    async function iniciarEscaner() {
+  const resultado = document.getElementById("resultado");
+
+  if (lectorQR) return;
+
+  lectorQR = new Html5Qrcode("lector");
+
+  try {
+    await lectorQR.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+
+      function(texto) {
+        if (procesando) return;
+
+        let codigo = "";
+
+        try {
+          const enlace = new URL(texto);
+          codigo = enlace.searchParams.get("codigo") || "";
+        } catch (error) {
+          codigo = texto.trim();
+        }
+
+        if (!/^ZDC-\d{5}$/.test(codigo)) {
+          resultado.textContent = "Este QR no corresponde a un ticket válido.";
+          return;
+        }
+
+        procesando = true;
+        lectorQR.pause(true);
+        resultado.textContent = "Registrando ingreso...";
+
+        llamarApi(
+          {
+            accion: "confirmar",
+            codigo: codigo,
+            token: window.tokenEncargado
+          },
+          function(respuesta) {
+            resultado.textContent =
+              respuesta.mensaje + " Código: " + codigo;
+
+            setTimeout(function() {
+              lectorQR.resume();
+              procesando = false;
+            }, 2000);
+          }
+        );
+      }
+    );
+
+    document.getElementById("btnEncender").style.display = "none";
+    resultado.textContent = "Cámara activada. Escanea un QR.";
+
+  } catch (error) {
+    lectorQR = null;
+    resultado.textContent = "No se pudo activar la cámara: " + error;
+  }
+}
   </script>
 </body>
 </html>
