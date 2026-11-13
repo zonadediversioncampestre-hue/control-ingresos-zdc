@@ -1,0 +1,85 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prueba de cámara - ZDC</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f5f2;
+      text-align: center;
+      padding: 20px;
+      margin: 0;
+    }
+
+    .panel {
+      background: white;
+      max-width: 500px;
+      margin: 20px auto;
+      padding: 25px 20px;
+      border-radius: 18px;
+      box-shadow: 0 3px 12px #00000015;
+    }
+
+    h2 { color: #245b3d; }
+
+    button {
+      width: 100%;
+      padding: 17px;
+      background: #245b3d;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    video {
+      width: 100%;
+      margin-top: 18px;
+      border-radius: 12px;
+    }
+
+    #resultado {
+      margin-top: 18px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="panel">
+    <h2>Zona de Diversión Campestre</h2>
+    <h3>Prueba de cámara</h3>
+
+    <button id="btnEncender">ACTIVAR CÁMARA</button>
+
+    <video id="video" autoplay playsinline></video>
+
+    <div id="resultado">Esperando activación...</div>
+  </div>
+
+  <script>
+    document.getElementById("btnEncender").addEventListener("click", async () => {
+      const resultado = document.getElementById("resultado");
+      const video = document.getElementById("video");
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+          audio: false
+        });
+
+        video.srcObject = stream;
+        resultado.textContent = "¡CÁMARA ACTIVADA CORRECTAMENTE!";
+      } catch (error) {
+        resultado.textContent = "ERROR: " + error.name + " - " + error.message;
+      }
+    });
+  </script>
+</body>
+</html>
