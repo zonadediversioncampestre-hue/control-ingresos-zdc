@@ -205,22 +205,76 @@ function llamarApi(parametros, callback) {
         lectorQR.pause(true);
         resultado.textContent = "Registrando ingreso...";
 
-        llamarApi(
-          {
-            accion: "confirmar",
-            codigo: codigo,
-            token: window.tokenEncargado
-          },
-          function(respuesta) {
-            resultado.textContent =
-              respuesta.mensaje + " Código: " + codigo;
+       llamarApi(
+  {
+    accion: "confirmar",
+    codigo: codigo,
+    token: window.tokenEncargado
+  },
+  function(respuesta) {
 
-            setTimeout(function() {
-              lectorQR.resume();
-              procesando = false;
-            }, 2000);
-          }
-        );
+    if (respuesta.ok) {
+      resultado.textContent =
+        "¡INGRESO AUTORIZADO! Código: " + codigo;
+
+      setTimeout(function() {
+        lectorQR.resume();
+        procesando = false;
+      }, 2000);
+
+      return;
+    }
+
+    if (respuesta.mensaje === "Este ticket ya fue utilizado.") {
+      resultado.textContent =
+        "TICKET YA UTILIZADO. Código: " + codigo;
+
+      setTimeout(function() {
+        lectorQR.resume();
+        procesando = false;
+      }, 3000);
+
+      return;
+    }
+
+    resultado.textContent = "Verificando registro del ticket...";
+
+    llamarApi(
+      {
+        accion: "consultar",
+        codigo: codigo
+      },
+      function(estado) {
+
+        if (estado.ok && estado.registrado) {
+          resultado.textContent =
+            "INGRESO REGISTRADO. Código: " + codigo +
+            " | " + estado.encargado;
+
+          setTimeout(function() {
+            lectorQR.resume();
+            procesando = false;
+          }, 3000);
+
+        } else if (estado.ok && !estado.registrado) {
+          resultado.textContent =
+            "NO SE REGISTRÓ EL INGRESO. Código: " + codigo;
+
+          setTimeout(function() {
+            lectorQR.resume();
+            procesando = false;
+          }, 3000);
+
+        } else {
+          resultado.textContent =
+            "NO SE PUDO VERIFICAR. No escanees de nuevo. Revisá el estado en la hoja.";
+
+          // La cámara queda pausada para evitar un registro duplicado.
+        }
+      }
+    );
+  }
+);
       }
     );
 
