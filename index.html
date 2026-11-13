@@ -4,7 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Prueba de cámara - ZDC</title>
+  <title>Control de ingreso - ZDC</title>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
     body {
@@ -26,6 +28,14 @@
 
     h2 { color: #245b3d; }
 
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 15px;
+      font-size: 18px;
+      margin: 15px 0;
+    }
+
     button {
       width: 100%;
       padding: 17px;
@@ -36,16 +46,17 @@
       font-size: 18px;
       font-weight: bold;
       cursor: pointer;
+      margin-top: 10px;
     }
 
-    video {
+    #lector {
       width: 100%;
-      margin-top: 18px;
-      border-radius: 12px;
+      margin: 15px auto;
     }
 
     #resultado {
       margin-top: 18px;
+      font-size: 18px;
       font-weight: bold;
     }
   </style>
@@ -54,32 +65,100 @@
 <body>
   <div class="panel">
     <h2>Zona de Diversión Campestre</h2>
-    <h3>Prueba de cámara</h3>
+    <h3>Validación de ingreso</h3>
 
-    <button id="btnEncender">ACTIVAR CÁMARA</button>
+    <div id="acceso">
+      <p>Ingresa tu PIN de encargado.</p>
+      <input type="password" id="pin" placeholder="PIN de autorización">
+      <button onclick="ingresar()">INGRESAR</button>
+    </div>
 
-    <video id="video" autoplay playsinline></video>
+    <div id="validacion" style="display:none">
+      <p id="encargado"></p>
+      <button id="btnEncender" onclick="iniciarEscaner()">
+        ACTIVAR CÁMARA
+      </button>
+      <div id="lector"></div>
+    </div>
 
-    <div id="resultado">Esperando activación...</div>
+    <div id="resultado">Esperando autorización...</div>
   </div>
 
   <script>
-    document.getElementById("btnEncender").addEventListener("click", async () => {
+    let lectorQR = null;
+    let procesando = false;
+
+    function ingresar() {
+      const pin = document.getElementById("pin").value.trim();
+
+      if (!pin) {
+        document.getElementById("resultado").textContent =
+          "Ingresa tu PIN.";
+        return;
+      }
+
+      // En esta etapa solo probaremos la pantalla y la cámara.
+      document.getElementById("acceso").style.display = "none";
+      document.getElementById("validacion").style.display = "block";
+      document.getElementById("encargado").textContent =
+        "Acceso de prueba";
+      document.getElementById("resultado").textContent =
+        "Pulsa ACTIVAR CÁMARA para comenzar.";
+    }
+
+    async function iniciarEscaner() {
       const resultado = document.getElementById("resultado");
-      const video = document.getElementById("video");
+
+      if (lectorQR) return;
+
+      lectorQR = new Html5Qrcode("lector");
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-          audio: false
-        });
+        await lectorQR.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          function(texto) {
+            if (procesando) return;
 
-        video.srcObject = stream;
-        resultado.textContent = "¡CÁMARA ACTIVADA CORRECTAMENTE!";
+            let codigo = "";
+
+            try {
+              const enlace = new URL(texto);
+              codigo = enlace.searchParams.get("codigo") || "";
+            } catch (error) {
+              codigo = texto.trim();
+            }
+
+            if (!/^ZDC-\d{5}$/.test(codigo)) {
+              resultado.textContent =
+                "Este QR no corresponde a un ticket válido.";
+              return;
+            }
+
+            procesando = true;
+            resultado.textContent =
+              "QR LEÍDO CORRECTAMENTE: " + codigo;
+
+            lectorQR.stop().then(function() {
+              lectorQR = null;
+              procesando = false;
+              document.getElementById("btnEncender").style.display =
+                "block";
+              resultado.textContent =
+                "QR LEÍDO CORRECTAMENTE: " + codigo;
+            });
+          }
+        );
+
+        document.getElementById("btnEncender").style.display = "none";
+        resultado.textContent = "Cámara activada. Escanea un QR.";
+
       } catch (error) {
-        resultado.textContent = "ERROR: " + error.name + " - " + error.message;
+        lectorQR = null;
+        resultado.textContent =
+          "No se pudo activar la cámara: " + error;
       }
-    });
+    }
   </script>
 </body>
 </html>
